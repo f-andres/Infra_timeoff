@@ -145,7 +145,6 @@ workflows:
           type: approval
           requires:
             - plan-destroy
-            - destroy-net
       - destroy:
           requires:
             - hold-destroy
@@ -162,7 +161,6 @@ workflows:
       - plan-destroy-net:
           requires:
             - apply-net
-            - destroy
       - hold-destroy-net:
           type: approval
           requires:
