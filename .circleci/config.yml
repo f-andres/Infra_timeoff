@@ -124,7 +124,73 @@ jobs:
           command: |
             cd 01_iam
             terraform apply -auto-approve tfdestroy
+## Cluster
+
+#  Network
+
+  plan-apply-cluster:
+    working_directory: /tmp/project
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - checkout
+      - run:
+          name: terraform init & plan for IAM and basic resources
+          command: |
+            cd 03_cluster
+            terraform init -input=false
+            terraform plan -out tfapply -var-file terraform.tfvars
+            
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  apply-cluster:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform
+          command: |
+            cd 03_cluster
+            terraform apply -auto-approve tfapply
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  plan-destroy-cluster:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform create destroy plan
+          command: |
+            cd 03_cluster
+            terraform plan -destroy -out tfdestroy -var-file terraform.tfvars
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  destroy-cluster:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform destroy
+          command: |
+            cd 03_cluster
+            terraform apply -auto-approve tfdestroy
 ##
+
+
 # Workflow 
 workflows:
   version: 2
@@ -168,3 +234,23 @@ workflows:
       - destroy-net:
           requires:
             - hold-destroy-net
+      - plan-apply-cluster:
+          requires:
+            - apply-net      
+      - hold-apply-cluster:
+          type: approval
+          requires:
+            - plan-apply-cluster
+      - apply-cluster:
+          requires:
+            - hold-apply-cluster
+      - plan-destroy-cluster:
+          requires:
+            - apply-cluster
+      - hold-destroy-cluster:
+          type: approval
+          requires:
+            - plan-destroy-cluster
+      - destroy-cluster:
+          requires:
+            - hold-destroy-cluster
